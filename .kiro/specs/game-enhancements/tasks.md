@@ -187,19 +187,147 @@
   - Test all particle effects trigger correctly
   - _Requirements: 7.2, 7.5_
 
-- [ ] 6. Final Testing and Polish
-- [ ] 6.1 Test complete save system workflow
+- [x] 6. Implement Audio System (BONUS FEATURE)
+
+
+- [x] 6.1 Create SoundEffects system with Web Audio API
+
+
+  - Implement playJump() sound with upward pitch sweep (300Hz → 600Hz)
+  - Implement playCollect() sound with bright chime (800Hz → 1600Hz)
+  - Implement playStomp() sound with downward thump (200Hz → 50Hz)
+  - Implement playDeath() sound with descending tone (400Hz → 100Hz)
+  - Implement playVictory() fanfare with 4-note melody (C5-E5-G5-C6)
+  - Use oscillators and gain nodes for retro 8-bit style sounds
+  - _Bonus Feature: Enhanced game feel with audio feedback_
+
+- [x] 6.2 Create BackgroundMusic system
+
+
+  - Implement looping melody pattern with retro-style notes
+  - Create start() method to begin music playback
+  - Create stop() method to halt music
+  - Implement playMelody() with recursive looping
+  - Set low volume (0.08) to not overpower sound effects
+  - _Bonus Feature: Continuous background music_
+
+- [x] 6.3 Integrate audio into game events
+
+
+  - Add jump sound to player jump action
+  - Add collect sound to collectible pickup
+  - Add stomp sound to enemy defeat
+  - Add death sound to loseLife() function and falling
+  - Add victory sound to goal reached
+  - Stop background music on game over and level complete
+  - Restart background music on game restart
+  - _Bonus Feature: Complete audio integration_
+
+- [x] 6.4 Add user interaction for audio start
+
+
+  - Add click listener to canvas to start background music
+  - Add visual prompt "Click on game to start music"
+  - Hide prompt after music starts
+  - Handle audio context autoplay restrictions
+  - _Bonus Feature: Browser-compliant audio initialization_
+
+- [x] 7. Implement Enhanced Gameplay Mechanics (BONUS FEATURES)
+
+
+- [x] 7.1 Add Mario-style enemy stomping
+
+
+  - Detect when player lands on enemy from above
+  - Check player velocityY > 0 and position relative to enemy
+  - Defeat enemy and set alive = false
+  - Add bounce effect (velocityY = -8) after stomp
+  - Award bonus points (+10) for enemy defeat
+  - Play stomp sound effect
+  - Skip dead enemies in update and draw loops
+  - _Bonus Feature: Enhanced combat mechanics_
+
+- [x] 7.2 Add death animation for falling
+
+
+  - Trigger death animation when falling off screen
+  - Play death sound when falling (same as enemy collision)
+  - Apply spinning rotation effect
+  - Deduct life and check for game over
+  - _Bonus Feature: Consistent death feedback_
+
+- [x] 7.3 Add left boundary wall
+
+
+  - Prevent player from moving past x = 0
+  - Reset velocityX to 0 at boundary
+  - Ensure player stays within game bounds at start
+  - _Bonus Feature: Better level boundaries_
+
+- [x] 7.4 Add enemy alive state tracking
+
+
+  - Add alive property to all enemies (default: true)
+  - Reset alive state in restartGame()
+  - Filter dead enemies from rendering and collision
+  - _Bonus Feature: Persistent enemy defeat state_
+
+- [ ] 8. Final Testing and Polish
+- [ ] 8.1 Test complete save system workflow
   - Play game and verify score saves
   - Verify high score updates correctly
   - Verify history displays correctly
   - Test with corrupted localStorage data
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3_
 
-- [ ] 6.2 Test complete particle system workflow
+- [ ] 8.2 Test complete particle system workflow
   - Verify all particle effects render correctly
   - Test particle performance with many particles
   - Verify particles clean up properly
   - Test particle effects with camera scrolling
   - _Requirements: 3.1, 4.1, 5.1, 6.1, 7.1, 7.2, 7.4_
 
-- [ ] 6.3 Ensure all tests pass, ask the user if questions arise
+- [x] 8.3 Test audio system
+
+
+  - Verify all sound effects play correctly
+  - Test background music looping
+  - Verify music stops on game over/complete
+  - Test click-to-start music functionality
+  - _Bonus Feature: Complete audio testing_
+
+- [x] 8.4 Test enhanced gameplay mechanics
+
+
+  - Verify enemy stomping works correctly
+  - Test death animation on falling
+  - Verify left boundary prevents movement
+  - Test enemy defeat state persistence
+  - _Bonus Feature: Enhanced mechanics testing_
+
+- [ ] 8.5 Ensure all tests pass, ask the user if questions arise
+
+- [x] 9. Documentation and Deployment (BONUS)
+
+
+- [x] 9.1 Create comprehensive README.md
+
+
+  - Document all features and gameplay mechanics
+  - Add controls and how to play instructions
+  - Include technical details and architecture
+  - Add audio system documentation
+  - Document enemy types and combat mechanics
+  - Add project structure and future enhancements
+  - _Bonus Feature: Complete documentation_
+
+- [x] 9.2 Set up Git repository and push to GitHub
+
+
+  - Initialize git repository
+  - Create .gitignore for IDE and OS files
+  - Add remote repository
+  - Commit with detailed message
+  - Resolve merge conflicts
+  - Push to https://github.com/CristianHisas/super-kiro-world
+  - _Bonus Feature: Version control and sharing_
