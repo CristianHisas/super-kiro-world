@@ -1,5 +1,7 @@
 # 🎮 Super Kiro World
 
+**Super Kiro World - RE:Invent 2025 Lab**
+
 A retro-style 2D platformer game built with vanilla JavaScript, HTML5 Canvas, and CSS. Guide Kiro through a challenging level filled with enemies, collectibles, and platforming action!
 
 ![Super Kiro World](kiro-logo.png)
@@ -107,7 +109,7 @@ The game includes a particle system foundation ready for:
 
 ## 🏆 Credits
 
-Created as part of the AWS Re:Invent workshop.
+Created as part of the AWS Re:Invent 2025 workshop.
 
 **Character**: Kiro mascot  
 **Theme**: Kiro brand purple (#790ECB)  
