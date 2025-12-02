@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Kiro World</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        
+        #gameContainer {
+            text-align: center;
+        }
+        
+        canvas {
+            border: 3px solid #790ECB;
+            background: #1a1a1a;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 0 20px rgba(121, 14, 203, 0.5);
+        }
+        
+        #ui {
+            display: flex;
+            justify-content: space-around;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            border: 2px solid #790ECB;
+        }
+        
+        .stat {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            color: #b8b8b8;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            color: #790ECB;
+        }
+        
+        #message {
+            font-size: 32px;
+            font-weight: bold;
+            color: #790ECB;
+            margin-top: 20px;
+            min-height: 40px;
+        }
+        
+        button {
+            background: #790ECB;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #9a3de0;
+            transform: scale(1.05);
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1 style="color: #790ECB; margin-bottom: 20px; font-size: 48px;">🎮 Super Kiro World</h1>
+        
+        <div id="ui">
+            <div class="stat">
+                <div class="stat-label">SCORE</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">LIVES</div>
+                <div class="stat-value" id="lives">5</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">COLLECTIBLES</div>
+                <div class="stat-value" id="collectibles">0/10</div>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="message"></div>
+        <div id="controls" style="color: #b8b8b8; margin-top: 15px;">
+            ⬅️ ➡️ Arrow Keys to Move | SPACEBAR to Jump<br>
+            <span id="musicPrompt" style="color: #790ECB; font-size: 14px; margin-top: 5px; display: inline-block;">🎵 Click on game to start music</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game constants
+        const GRAVITY = 0.5;
+        const JUMP_POWER = 12;
+        const MOVE_SPEED = 5;
+        const FRICTION = 0.8;
+        const PLAYER_SIZE = 40;
+        
+        // Audio Context for sound effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Sound Effects System
+        const SoundEffects = {
+            // Jump sound - upward pitch sweep
+            playJump() {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            },
+            
+            // Collect sound - bright chime
+            playCollect() {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.05);
+                oscillator.frequency.exponentialRampToValueAtTime(1600, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                
+                oscillator.type = 'square';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.15);
+            },
+            
+            // Enemy stomp sound - downward thump
+            playStomp() {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.type = 'sawtooth';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            },
+            
+            // Death sound - descending tone
+            playDeath() {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.5);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.type = 'sawtooth';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            },
+            
+            // Victory sound - triumphant fanfare
+            playVictory() {
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                const duration = 0.15;
+                
+                notes.forEach((freq, index) => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + index * duration);
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + index * duration);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + index * duration + duration);
+                    
+                    oscillator.type = 'square';
+                    oscillator.start(audioContext.currentTime + index * duration);
+                    oscillator.stop(audioContext.currentTime + index * duration + duration);
+                });
+            }
+        };
+        
+        // Background Music System
+        const BackgroundMusic = {
+            isPlaying: false,
+            oscillators: [],
+            gainNode: null,
+            
+            // Simple melody pattern (Mario-style)
+            melody: [
+                { note: 659.25, duration: 0.15 },  // E5
+                { note: 659.25, duration: 0.15 },  // E5
+                { note: 0, duration: 0.15 },       // Rest
+                { note: 659.25, duration: 0.15 },  // E5
+                { note: 0, duration: 0.15 },       // Rest
+                { note: 523.25, duration: 0.15 },  // C5
+                { note: 659.25, duration: 0.3 },   // E5
+                { note: 783.99, duration: 0.3 },   // G5
+                { note: 0, duration: 0.3 },        // Rest
+                { note: 392.00, duration: 0.3 }    // G4
+            ],
+            
+            start() {
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+                this.playMelody();
+            },
+            
+            playMelody() {
+                if (!this.isPlaying) return;
+                
+                let time = audioContext.currentTime;
+                
+                this.melody.forEach((note) => {
+                    if (note.note > 0) {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.frequency.setValueAtTime(note.note, time);
+                        oscillator.type = 'square';
+                        
+                        gainNode.gain.setValueAtTime(0.08, time);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, time + note.duration);
+                        
+                        oscillator.start(time);
+                        oscillator.stop(time + note.duration);
+                    }
+                    
+                    time += note.duration;
+                });
+                
+                // Loop the melody
+                const totalDuration = this.melody.reduce((sum, note) => sum + note.duration, 0);
+                setTimeout(() => this.playMelody(), totalDuration * 1000);
+            },
+            
+            stop() {
+                this.isPlaying = false;
+            }
+        };
+        
+        // Game state
+        let gameState = {
+            score: 0,
+            lives: 5,
+            collectedItems: 0,
+            totalItems: 10,
+            gameOver: false,
+            levelComplete: false,
+            cameraX: 0,
+            victoryAnimation: false,
+            victoryTimer: 0
+        };
+        
+        // Player
+        let player = {
+            x: 100,
+            y: 100,
+            width: PLAYER_SIZE,
+            height: PLAYER_SIZE,
+            velocityX: 0,
+            velocityY: 0,
+            onGround: false,
+            facingRight: true,
+            isDying: false,
+            deathRotation: 0,
+            deathTimer: 0,
+            isEnteringCastle: false,
+            castleEntryProgress: 0,
+            image: new Image()
+        };
+        
+        player.image.src = 'kiro-logo.png';
+        
+        // Input handling
+        const keys = {};
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === ' ' || e.key === 'ArrowUp') {
+                e.preventDefault();
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // Platforms
+        const platforms = [
+            { x: 0, y: 550, width: 300, height: 50 },
+            { x: 400, y: 500, width: 200, height: 50 },
+            { x: 700, y: 450, width: 200, height: 50 },
+            { x: 1000, y: 400, width: 250, height: 50 },
+            { x: 1350, y: 350, width: 200, height: 50 },
+            { x: 1650, y: 400, width: 200, height: 50 },
+            { x: 1950, y: 450, width: 250, height: 50 },
+            { x: 2300, y: 400, width: 200, height: 50 },
+            { x: 2600, y: 350, width: 200, height: 50 },
+            { x: 2900, y: 300, width: 300, height: 50 }
+        ];
+        
+        // Collectibles (purple gems)
+        const collectibles = [
+            { x: 150, y: 480, collected: false },
+            { x: 500, y: 430, collected: false },
+            { x: 800, y: 380, collected: false },
+            { x: 1100, y: 330, collected: false },
+            { x: 1450, y: 280, collected: false },
+            { x: 1750, y: 330, collected: false },
+            { x: 2050, y: 380, collected: false },
+            { x: 2400, y: 330, collected: false },
+            { x: 2700, y: 280, collected: false },
+            { x: 3000, y: 230, collected: false }
+        ];
+        
+        // Enemies with different movement patterns
+        const enemies = [
+            { x: 450, y: 470, width: 30, height: 30, speed: 2, direction: 1, range: 150, startX: 450, startY: 470, type: 'horizontal', alive: true },
+            { x: 1050, y: 370, width: 30, height: 30, speed: 1.5, direction: 1, range: 100, startX: 1050, startY: 370, type: 'vertical', alive: true },
+            { x: 2000, y: 420, width: 30, height: 30, speed: 2, direction: 1, range: 200, startX: 2000, startY: 420, type: 'circular', angle: 0, alive: true }
+        ];
+        
+        // Goal (flag and castle)
+        const goal = {
+            flagX: 3050,
+            flagY: 200,
+            castleX: 3100,
+            castleY: 200,
+            reached: false,
+            victoryFlagY: 200,
+            showVictoryFlag: false
+        };
+        
+        // Particle System
+        class Particle {
+            constructor(x, y, velocityX, velocityY, color, size, lifetime) {
+                this.x = x;
+                this.y = y;
+                this.velocityX = velocityX;
+                this.velocityY = velocityY;
+                this.color = color;
+                this.size = size;
+                this.lifetime = lifetime;
+                this.age = 0;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.2;
+            }
+            
+            update() {
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+                this.rotation += this.rotationSpeed;
+                this.age++;
+            }
+            
+            isDead() {
+                return this.age >= this.lifetime;
+            }
+            
+            getOpacity() {
+                return 1 - (this.age / this.lifetime);
+            }
+            
+            draw(ctx, cameraX) {
+                ctx.save();
+                ctx.globalAlpha = this.getOpacity();
+                ctx.fillStyle = this.color;
+                ctx.translate(this.x - cameraX, this.y);
+                ctx.rotate(this.rotation);
+                ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+        
+        const ParticleManager = {
+            particles: [],
+            MAX_PARTICLES: 1000,
+            
+            // Add particle to system
+            add(particle) {
+                // Enforce particle limit for performance
+                if (this.particles.length < this.MAX_PARTICLES) {
+                    this.particles.push(particle);
+                }
+            },
+            
+            // Update all particles
+            update() {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const particle = this.particles[i];
+                    particle.update();
+                    
+                    // Remove expired particles
+                    if (particle.isDead()) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            },
+            
+            // Draw all particles
+            draw(ctx, cameraX) {
+                for (let particle of this.particles) {
+                    particle.draw(ctx, cameraX);
+                }
+            },
+            
+            // Clear all particles
+            clear() {
+                this.particles = [];
+            }
+        };
+        
+        function updatePlayer() {
+            if (gameState.gameOver || gameState.levelComplete) return;
+            
+            // Handle victory animation - don't process normal controls
+            if (gameState.victoryAnimation) return;
+            
+            // Handle death animation
+            if (player.isDying) {
+                player.deathTimer++;
+                player.deathRotation += 0.15;
+                player.velocityY += GRAVITY;
+                player.y += player.velocityY;
+                
+                // After falling off screen, respawn
+                if (player.deathTimer > 120 || player.y > canvas.height + 100) {
+                    player.isDying = false;
+                    player.deathRotation = 0;
+                    player.deathTimer = 0;
+                    player.x = 100;
+                    player.y = 100;
+                    player.velocityX = 0;
+                    player.velocityY = 0;
+                }
+                return;
+            }
+            
+            // Horizontal movement
+            if (keys['ArrowLeft']) {
+                player.velocityX = -MOVE_SPEED;
+                player.facingRight = false;
+            } else if (keys['ArrowRight']) {
+                player.velocityX = MOVE_SPEED;
+                player.facingRight = true;
+            } else {
+                player.velocityX *= FRICTION;
+            }
+            
+            // Jumping (only spacebar)
+            if (keys[' '] && player.onGround) {
+                player.velocityY = -JUMP_POWER;
+                player.onGround = false;
+                SoundEffects.playJump();
+            }
+            
+            // Apply gravity
+            player.velocityY += GRAVITY;
+            
+            // Update position
+            player.x += player.velocityX;
+            player.y += player.velocityY;
+            
+            // Check platform collisions
+            player.onGround = false;
+            
+            for (let platform of platforms) {
+                if (checkCollision(player, platform)) {
+                    // Landing on top
+                    if (player.velocityY > 0 && player.y + player.height - player.velocityY <= platform.y) {
+                        player.y = platform.y - player.height;
+                        player.velocityY = 0;
+                        player.onGround = true;
+                    }
+                    // Hitting from below
+                    else if (player.velocityY < 0 && player.y - player.velocityY >= platform.y + platform.height) {
+                        player.y = platform.y + platform.height;
+                        player.velocityY = 0;
+                    }
+                    // Side collisions
+                    else if (player.velocityX > 0) {
+                        player.x = platform.x - player.width;
+                        player.velocityX = 0;
+                    } else if (player.velocityX < 0) {
+                        player.x = platform.x + platform.width;
+                        player.velocityX = 0;
+                    }
+                }
+            }
+            
+            // Check if player fell off - trigger death animation
+            if (player.y > canvas.height) {
+                if (!player.isDying) {
+                    player.isDying = true;
+                    player.velocityY = -8;
+                    gameState.lives -= 1;
+                    SoundEffects.playDeath(); // Play death sound when falling
+                    
+                    if (gameState.lives <= 0) {
+                        setTimeout(() => {
+                            gameOver();
+                        }, 2000);
+                    }
+                }
+            }
+            
+            // Prevent player from going past left boundary
+            if (player.x < 0) {
+                player.x = 0;
+                player.velocityX = 0;
+            }
+            
+            // Update camera
+            gameState.cameraX = player.x - canvas.width / 3;
+            if (gameState.cameraX < 0) gameState.cameraX = 0;
+        }
+
+        
+        function updateEnemies() {
+            for (let enemy of enemies) {
+                // Skip dead enemies
+                if (!enemy.alive) continue;
+                
+                if (enemy.type === 'horizontal') {
+                    // Move left and right
+                    enemy.x += enemy.speed * enemy.direction;
+                    if (Math.abs(enemy.x - enemy.startX) > enemy.range) {
+                        enemy.direction *= -1;
+                    }
+                } else if (enemy.type === 'vertical') {
+                    // Move up and down
+                    enemy.y += enemy.speed * enemy.direction;
+                    if (Math.abs(enemy.y - enemy.startY) > enemy.range) {
+                        enemy.direction *= -1;
+                    }
+                } else if (enemy.type === 'circular') {
+                    // Move in a circle
+                    enemy.angle += 0.02;
+                    enemy.x = enemy.startX + Math.cos(enemy.angle) * enemy.range;
+                    enemy.y = enemy.startY + Math.sin(enemy.angle) * 80;
+                }
+                
+                // Check collision with player
+                if (!gameState.gameOver && !player.isDying && checkCollision(player, enemy)) {
+                    // Check if player is jumping on enemy (from above)
+                    if (player.velocityY > 0 && player.y + player.height - player.velocityY <= enemy.y + 10) {
+                        // Player jumped on enemy - defeat it!
+                        enemy.alive = false;
+                        player.velocityY = -8; // Bounce up
+                        gameState.score += 10; // Bonus points for defeating enemy
+                        SoundEffects.playStomp();
+                    } else {
+                        // Player hit enemy from side or below - lose life
+                        loseLife();
+                    }
+                }
+            }
+        }
+        
+        function updateCollectibles() {
+            for (let item of collectibles) {
+                if (!item.collected) {
+                    const itemBox = { x: item.x, y: item.y, width: 20, height: 20 };
+                    if (checkCollision(player, itemBox)) {
+                        item.collected = true;
+                        gameState.score += 1;
+                        gameState.collectedItems += 1;
+                        SoundEffects.playCollect();
+                    }
+                }
+            }
+        }
+        
+        function updateGoal() {
+            if (!goal.reached && !gameState.levelComplete && !gameState.victoryAnimation) {
+                const goalBox = { x: goal.flagX, y: goal.flagY, width: 100, height: 100 };
+                if (checkCollision(player, goalBox)) {
+                    goal.reached = true;
+                    gameState.victoryAnimation = true;
+                    player.isEnteringCastle = true;
+                    player.facingRight = true;
+                    SoundEffects.playVictory();
+                    BackgroundMusic.stop();
+                }
+            }
+            
+            // Victory animation sequence
+            if (gameState.victoryAnimation) {
+                gameState.victoryTimer++;
+                
+                // Phase 1: Walk to castle door (0-60 frames)
+                if (gameState.victoryTimer < 60) {
+                    player.x += 2;
+                    player.castleEntryProgress = 0;
+                }
+                // Phase 2: Enter castle door (60-120 frames)
+                else if (gameState.victoryTimer < 120) {
+                    player.castleEntryProgress = (gameState.victoryTimer - 60) / 60;
+                }
+                // Phase 3: Show victory flag rising (120-180 frames)
+                else if (gameState.victoryTimer < 180) {
+                    goal.showVictoryFlag = true;
+                    const progress = (gameState.victoryTimer - 120) / 60;
+                    goal.victoryFlagY = 200 - (progress * 50);
+                }
+                // Phase 4: Complete
+                else if (gameState.victoryTimer === 180) {
+                    levelComplete();
+                }
+            }
+        }
+        
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+        
+        function loseLife() {
+            if (player.isDying) return;
+            
+            gameState.lives -= 1;
+            SoundEffects.playDeath();
+            
+            if (gameState.lives <= 0) {
+                player.isDying = true;
+                player.velocityY = -8;
+                setTimeout(() => {
+                    gameOver();
+                }, 2000);
+            } else {
+                // Start death animation
+                player.isDying = true;
+                player.velocityY = -8;
+            }
+        }
+        
+        function gameOver() {
+            gameState.gameOver = true;
+            BackgroundMusic.stop();
+            document.getElementById('message').innerHTML = 
+                '💀 GAME OVER!<br><button onclick="restartGame()">Try Again</button>';
+        }
+        
+        function levelComplete() {
+            gameState.levelComplete = true;
+            BackgroundMusic.stop();
+            const bonus = gameState.collectedItems * 10;
+            gameState.score += bonus;
+            document.getElementById('message').innerHTML = 
+                `🎉 LEVEL COMPLETE!<br>Collectibles Bonus: +${bonus} points<br><button onclick="restartGame()">Play Again</button>`;
+        }
+        
+        function restartGame() {
+            // Reset game state
+            gameState = {
+                score: 0,
+                lives: 5,
+                collectedItems: 0,
+                totalItems: 10,
+                gameOver: false,
+                levelComplete: false,
+                cameraX: 0,
+                victoryAnimation: false,
+                victoryTimer: 0
+            };
+            
+            // Reset player
+            player.x = 100;
+            player.y = 100;
+            player.velocityX = 0;
+            player.velocityY = 0;
+            player.onGround = false;
+            player.isDying = false;
+            player.deathRotation = 0;
+            player.deathTimer = 0;
+            player.isEnteringCastle = false;
+            player.castleEntryProgress = 0;
+            
+            // Reset collectibles
+            collectibles.forEach(item => item.collected = false);
+            
+            // Reset enemies
+            enemies.forEach(enemy => {
+                enemy.x = enemy.startX;
+                enemy.y = enemy.startY;
+                enemy.direction = 1;
+                enemy.alive = true;
+                if (enemy.type === 'circular') {
+                    enemy.angle = 0;
+                }
+            });
+            
+            // Reset goal
+            goal.reached = false;
+            goal.showVictoryFlag = false;
+            goal.victoryFlagY = 200;
+            
+            // Restart background music
+            BackgroundMusic.start();
+            
+            document.getElementById('message').innerHTML = '';
+        }
+        
+        function drawPlayer() {
+            ctx.save();
+            
+            const screenX = player.x - gameState.cameraX;
+            
+            // If dying, rotate and flip upside down
+            if (player.isDying) {
+                ctx.translate(screenX + player.width / 2, player.y + player.height / 2);
+                ctx.rotate(player.deathRotation);
+                ctx.scale(1, -1); // Flip upside down
+                ctx.drawImage(player.image, -player.width / 2, -player.height / 2, player.width, player.height);
+            } 
+            // If entering castle, fade out
+            else if (player.isEnteringCastle && player.castleEntryProgress > 0) {
+                ctx.globalAlpha = 1 - player.castleEntryProgress;
+                ctx.drawImage(player.image, screenX, player.y, player.width, player.height);
+                ctx.globalAlpha = 1;
+            }
+            // Normal drawing
+            else {
+                // Flip image if facing left
+                if (!player.facingRight) {
+                    ctx.translate(screenX + player.width, player.y);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(player.image, 0, 0, player.width, player.height);
+                } else {
+                    ctx.drawImage(player.image, screenX, player.y, player.width, player.height);
+                }
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawPlatforms() {
+            ctx.fillStyle = '#790ECB';
+            ctx.strokeStyle = '#9a3de0';
+            ctx.lineWidth = 2;
+            
+            for (let platform of platforms) {
+                ctx.fillRect(
+                    platform.x - gameState.cameraX, 
+                    platform.y, 
+                    platform.width, 
+                    platform.height
+                );
+                ctx.strokeRect(
+                    platform.x - gameState.cameraX, 
+                    platform.y, 
+                    platform.width, 
+                    platform.height
+                );
+            }
+        }
+        
+        function drawCollectibles() {
+            for (let item of collectibles) {
+                if (!item.collected) {
+                    // Draw purple gem/star
+                    ctx.save();
+                    ctx.translate(item.x - gameState.cameraX + 10, item.y + 10);
+                    ctx.rotate(Date.now() / 500);
+                    
+                    // Star shape
+                    ctx.fillStyle = '#790ECB';
+                    ctx.strokeStyle = '#9a3de0';
+                    ctx.lineWidth = 2;
+                    
+                    ctx.beginPath();
+                    for (let i = 0; i < 5; i++) {
+                        const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                        const x = Math.cos(angle) * 10;
+                        const y = Math.sin(angle) * 10;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                }
+            }
+        }
+        
+        function drawEnemies() {
+            ctx.fillStyle = '#ff3333';
+            ctx.strokeStyle = '#ff6666';
+            ctx.lineWidth = 2;
+            
+            for (let enemy of enemies) {
+                // Skip dead enemies
+                if (!enemy.alive) continue;
+                
+                // Draw spiky enemy
+                ctx.save();
+                ctx.translate(enemy.x - gameState.cameraX + enemy.width / 2, enemy.y + enemy.height / 2);
+                
+                // Body
+                ctx.beginPath();
+                ctx.arc(0, 0, enemy.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Spikes
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i * Math.PI * 2) / 8;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(angle) * (enemy.width / 2), Math.sin(angle) * (enemy.width / 2));
+                    ctx.lineTo(Math.cos(angle) * (enemy.width / 2 + 8), Math.sin(angle) * (enemy.width / 2 + 8));
+                    ctx.strokeStyle = '#ff3333';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        function drawGoal() {
+            const flagX = goal.flagX - gameState.cameraX;
+            const castleX = goal.castleX - gameState.cameraX;
+            
+            // Draw flag pole
+            ctx.strokeStyle = '#b8b8b8';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(flagX, goal.flagY);
+            ctx.lineTo(flagX, goal.flagY + 100);
+            ctx.stroke();
+            
+            // Draw flag
+            ctx.fillStyle = '#790ECB';
+            ctx.strokeStyle = '#9a3de0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(flagX, goal.flagY);
+            ctx.lineTo(flagX + 40, goal.flagY + 15);
+            ctx.lineTo(flagX, goal.flagY + 30);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Animate flag wave
+            const wave = Math.sin(Date.now() / 200) * 3;
+            ctx.fillStyle = '#790ECB';
+            ctx.beginPath();
+            ctx.moveTo(flagX, goal.flagY);
+            ctx.lineTo(flagX + 40 + wave, goal.flagY + 15);
+            ctx.lineTo(flagX, goal.flagY + 30);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw castle
+            ctx.fillStyle = '#4a4a4a';
+            ctx.strokeStyle = '#6a6a6a';
+            ctx.lineWidth = 2;
+            
+            // Castle base
+            ctx.fillRect(castleX, goal.castleY + 50, 80, 50);
+            ctx.strokeRect(castleX, goal.castleY + 50, 80, 50);
+            
+            // Castle towers
+            ctx.fillRect(castleX - 10, goal.castleY + 30, 25, 70);
+            ctx.strokeRect(castleX - 10, goal.castleY + 30, 25, 70);
+            ctx.fillRect(castleX + 65, goal.castleY + 30, 25, 70);
+            ctx.strokeRect(castleX + 65, goal.castleY + 30, 25, 70);
+            
+            // Castle top
+            ctx.fillRect(castleX + 20, goal.castleY + 20, 40, 30);
+            ctx.strokeRect(castleX + 20, goal.castleY + 20, 40, 30);
+            
+            // Battlements
+            for (let i = 0; i < 4; i++) {
+                ctx.fillRect(castleX + 20 + i * 13, goal.castleY + 15, 8, 10);
+            }
+            
+            // Door
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(castleX + 30, goal.castleY + 70, 20, 30);
+            ctx.strokeRect(castleX + 30, goal.castleY + 70, 20, 30);
+            
+            // Windows
+            ctx.fillStyle = '#790ECB';
+            ctx.fillRect(castleX + 30, goal.castleY + 30, 10, 10);
+            ctx.fillRect(castleX + 50, goal.castleY + 30, 10, 10);
+            
+            // Draw victory flag on top of castle
+            if (goal.showVictoryFlag) {
+                const victoryFlagX = castleX + 40;
+                const victoryFlagY = goal.victoryFlagY - gameState.cameraX * 0;
+                
+                // Flag pole on castle top
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(victoryFlagX, victoryFlagY);
+                ctx.lineTo(victoryFlagX, goal.castleY + 15);
+                ctx.stroke();
+                
+                // Victory flag (gold/yellow)
+                ctx.fillStyle = '#FFD700';
+                ctx.strokeStyle = '#FFA500';
+                ctx.lineWidth = 2;
+                
+                const flagWave = Math.sin(Date.now() / 150) * 2;
+                ctx.beginPath();
+                ctx.moveTo(victoryFlagX, victoryFlagY);
+                ctx.lineTo(victoryFlagX + 30 + flagWave, victoryFlagY + 10);
+                ctx.lineTo(victoryFlagX, victoryFlagY + 20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Star on flag
+                ctx.fillStyle = '#790ECB';
+                ctx.save();
+                ctx.translate(victoryFlagX + 15, victoryFlagY + 10);
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                    const x = Math.cos(angle) * 5;
+                    const y = Math.sin(angle) * 5;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        function drawBackground() {
+            // Dark gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a1a1a');
+            gradient.addColorStop(1, '#0a0a0a');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Grid lines for depth
+            ctx.strokeStyle = 'rgba(121, 14, 203, 0.1)';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i < 20; i++) {
+                const x = (i * 100 - (gameState.cameraX * 0.5) % 100);
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('lives').textContent = gameState.lives;
+            document.getElementById('collectibles').textContent = 
+                `${gameState.collectedItems}/${gameState.totalItems}`;
+        }
+        
+        function gameLoop() {
+            // Update
+            updatePlayer();
+            updateEnemies();
+            updateCollectibles();
+            updateGoal();
+            
+            // Draw
+            drawBackground();
+            drawPlatforms();
+            drawCollectibles();
+            drawEnemies();
+            drawGoal();
+            drawPlayer();
+            
+            // Update UI
+            updateUI();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Start game when image loads
+        player.image.onload = () => {
+            gameLoop();
+            // Start background music after user interaction (click to start)
+            canvas.addEventListener('click', () => {
+                if (!BackgroundMusic.isPlaying) {
+                    BackgroundMusic.start();
+                    document.getElementById('musicPrompt').style.display = 'none';
+                }
+            }, { once: true });
+        };
+        
+        // Start game even if image fails to load
+        player.image.onerror = () => {
+            console.warn('Kiro logo not found, using placeholder');
+            gameLoop();
+            // Start background music after user interaction (click to start)
+            canvas.addEventListener('click', () => {
+                if (!BackgroundMusic.isPlaying) {
+                    BackgroundMusic.start();
+                    document.getElementById('musicPrompt').style.display = 'none';
+                }
+            }, { once: true });
+        };
+    </script>
+</body>
+</html>
